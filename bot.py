@@ -44,8 +44,7 @@ db.create_tables([User, Election, Suffrage], True)
 
 
 BaseClient = pydle.featurize(pydle.features.RFC1459Support,
-                             pydle.features.TLSSupport,
-                             pydle.features.AccountSupport,
+                             pydle.features.IRCv3Support,
                              pydle.features.WHOXSupport)
 
 CS_FLAGS_RE = re.compile(r'\d+\s+(.+?)\s+\+(.+?)\s+(?:\(.+\))?\s+\((\#.+)\).*')
@@ -123,6 +122,24 @@ class Kontroler(BaseClient):
         self.usermap[account] = user
 
 
-client = Kontroler('Kontroler')
+client = Kontroler('Kontroler',
+                   sasl_username=config.SASL_USER,
+                   sasl_password=config.SASL_PASS)
 client.connect(config.IRC_SERVER, tls=True)
-client.handle_forever()
+try:
+    client.handle_forever()
+except KeyboardInterrupt:
+    print("Saving all our stuff...")
+    for usr in client.usermap:
+        uinfo = client.usermap[usr]
+        if not uinfo.get('lines'):
+            continue
+        try:
+            user = User.get(User.name == uinfo)
+            user.lines = uinfo['lines']
+            user.last_seen = uinfo['last_seen']
+        except User.DoesNotExist:
+            user = User(name=usr, lines=uinfo['lines'],
+                        first_seen=uinfo['first_seen'],
+                        last_seen=uinfo['last_seen'])
+        user.save()
