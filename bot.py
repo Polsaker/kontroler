@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 import pydle
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from peewee import SqliteDatabase, Model, CharField, DateTimeField
 from peewee import ForeignKeyField, BooleanField, IntegerField
+import votes
 import config
+
+VOTE_NAMES = {"civis": votes.Civis,
+              "censure": votes.Censure,
+              "arripio": votes.Arripio}
 
 db = SqliteDatabase('users.db')
 
@@ -20,11 +25,12 @@ class User(Model):
 
 
 class Election(Model):
-    vote_type = IntegerField()  # Vote type (1 = civis, ...)
-    opened = DateTimeField()
-    closed = DateTimeField()
+    vote_type = CharField()
+    opened = DateTimeField()  # when election started
+    close = DateTimeField()  # when election should close
+    status = IntegerField()  # 0=open, 1=passed, 2=quorum, 3=not passed, 4=veto
     opened_by = ForeignKeyField(User, related_name='votes_opened')
-    opened_for = ForeignKeyField(User, related_name='votes_subjected')
+    vote_target = CharField()
 
     class Meta:
         database = db
@@ -39,8 +45,41 @@ class Suffrage(Model):
         database = db
 
 
+class Effective(Model):
+    vote_type = CharField()
+    close = DateTimeField()
+    vote_target = CharField()
+
+    class Meta:
+        database = db
+
+
 db.connect()
-db.create_tables([User, Election, Suffrage], True)
+db.create_tables([User, Election, Suffrage, Effective], True)
+
+
+def display_time(seconds, granularity=2):
+    intervals = (
+        ('weeks', 604800),  # 60 * 60 * 24 * 7
+        ('days', 86400),    # 60 * 60 * 24
+        ('hours', 3600),    # 60 * 60
+        ('minutes', 60),
+        ('seconds', 1),
+    )
+    result = []
+
+    for name, count in intervals:
+        value = seconds // count
+        if value:
+            seconds -= value * count
+            if value == 1:
+                name = name.rstrip('s')
+            result.append("{} {}".format(value, name))
+        else:
+            # Add a blank if we're in the middle of other values
+            if len(result) > 0:
+                result.append(None)
+    return ', '.join([x for x in result[:granularity] if x is not None])
 
 
 BaseClient = pydle.featurize(pydle.features.RFC1459Support,
@@ -48,6 +87,7 @@ BaseClient = pydle.featurize(pydle.features.RFC1459Support,
                              pydle.features.WHOXSupport)
 
 CS_FLAGS_RE = re.compile(r'\d+\s+(.+?)\s+\+(.+?)\s+(?:\(.+\))?\s+\((\#.+)\).*')
+CS_FCHANGE_RE = re.compile(r'set flags \002(.+?)\002 on \002(.+?)\002')
 
 
 class Kontroler(BaseClient):
@@ -70,8 +110,40 @@ class Kontroler(BaseClient):
         if user == self.nickname:
             self.message('ChanServ', 'FLAGS {}'.format(channel))
 
-    def on_private_notice(self, by, message):
-        if by == "ChanServ":  # FLAGS
+        for elec in Election.select().where(Election.status == 0):
+            if elec.close < datetime.utcnow():
+                # Already closed!!
+                self._closevote(elec.id)
+            else:
+                closes_in = elec.close - datetime.utcnow()
+                self.eventloop.schedule_in(closes_in, self._closevote, elec.id)
+
+        for elec in Effective.select():
+            if elec.close < datetime.utcnow():
+                # Already closed!!
+                self._expire(elec.id)
+            else:
+                closes_in = elec.close - datetime.utcnow()
+                self.eventloop.schedule_in(closes_in, self._expire, elec.id)
+
+    def on_notice(self, target, by, message):
+        if by == "ChanServ" and target == config.CHANNEL:
+            m = CS_FCHANGE_RE.search(message)
+            if m:
+                for fl in m.group(1):
+                    if fl == '+':
+                        add = True
+                    elif fl == '-':
+                        add = False
+                    else:
+                        if add:
+                            self.usermap[m.group(2).lower()]['flags'] += fl
+                        else:
+                            self.usermap[m.group(2).lower()]['flags'] = \
+                             self.usermap[m.group(2).lower()]['flags'].replace(
+                                fl, ''
+                             )
+        elif by == "ChanServ" and target == self.nickname:  # FLAGS
             if message == "You are not authorized to perform this operation.":
                 return self.message(config.CHANNEL, "Error: Can't see ACL")
             m = CS_FLAGS_RE.search(message)
@@ -81,18 +153,10 @@ class Kontroler(BaseClient):
                 else:
                     self.usermap[m.group(1).lower()] = {"flags": m.group(2)}
 
-    def on_notice(self, target, by, message):
-        if by == "ChanServ" and target != self.nickname:
-            self.message('ChanServ', 'FLAGS {}'.format(target))
+    def msg(self, message):
+        return self.notice(config.CHANNEL, message)
 
-    def on_message(self, target, by, message):
-        if target != config.CHANNEL:
-            return  # TODO: commands - via private message
-        print(self.usermap)
-        account = self.users[by]['account'].lower()
-        if not account:
-            return  # Unregistered users don't exist
-
+    def count_line(self, account):
         if self.usermap.get(account):
             user = self.usermap[account]
             user['last_seen'] = datetime.utcnow()
@@ -121,6 +185,180 @@ class Kontroler(BaseClient):
             dbuser.save()
         self.usermap[account] = user
 
+    def start_vote(self, by, args):
+        account = self.users[by]['account'].lower()
+        # 1 - Check if user has voice
+        if by not in self.channels[config.CHANNEL]['modes'].get('v', []):
+            return self.notice(by, 'Failed: You are not enfranchised.')
+        # 2 - get vote class
+        vote = VOTE_NAMES[args[0]](self)
+        # 3 - check if vote already exists
+        try:
+            vote = Election.select() \
+                        .where(Election.vote_type == args[0],
+                               Election.status == 0,
+                               Election.vote_target == vote.get_target(args)) \
+                        .get()
+            # !!! vote already exists
+            return self.msg("Error: TODO!")  # TODO: auto positive vote
+        except Election.DoesNotExist:
+            pass
+
+        # 5 - Custom vote type checks
+        if vote.vote_check(args, by) is not True:
+            print("Vote creation rejected by custom rule")
+            return
+
+        # 6 - Create the vote
+        opener = User.get(User.name == account)
+        elec = Election(vote_type=args[0],
+                        opened=datetime.utcnow(),
+                        close=datetime.utcnow() +
+                        timedelta(seconds=vote.openfor),
+                        status=0,
+                        opened_by=opener,
+                        vote_target=vote.get_target(args))
+        elec.save()
+        # 7 - Emit self vote
+        svote = Suffrage(election=elec,
+                         yea=True,
+                         emitted_by=opener)
+        svote.save()
+        # 8 - Schedule
+        self.eventloop.schedule_in(timedelta(seconds=vote.openfor),
+                                   self._closevote, elec.id)
+        # 9 - announce
+        dt = display_time(vote.openfor)
+        self.msg("Vote \002#{0}\002: \002{1}\002: \037{2}\037. You have "
+                 "\002{3}\002 to vote; \002{4}\002 votes are required for a "
+                 "quorum! Type or PM \002\00303!vote y {0}\003\002 or "
+                 "\002\00304!vote n {0}\003\002".format(
+                     elec.id, args[0], vote.get_target(args), dt, vote.quorum
+                 ))
+
+    def _closevote(self, voteid):
+        """ Called when a vote is to be closed """
+        vote = Election.get(Election.id == voteid)
+        vclass = VOTE_NAMES[vote.vote_type](self)
+        suffrages = Suffrage.select().where(Suffrage.election == vote)
+        if suffrages.count() < vclass.quorum:
+            self.msg("\002#{0}\002: Failed to reach quorum: \002{1}\002 of "
+                     "\002{2}\002 required votes.".format(voteid,
+                                                          suffrages.count(),
+                                                          vclass.quorum))
+            vote.status = 2  # Closed - quorum
+            vote.save()
+            return
+        yeas = 0
+        nays = 0
+        for sf in suffrages:
+            if sf.yea:
+                yeas += 1
+            else:
+                nays += 1
+        perc = int((yeas / suffrages.count())*100)
+        if (perc < 75 and vclass.supermajority) or (perc < 51):
+            self.msg("\002#{0}\002: \002{1}\002: \037{2}\037. "
+                     "\002\00300,04The nays have it.\003\002 "
+                     "Yeas: \00303{3}\003. Nays: \00304{4}\003. "
+                     "\00304{5}\003% of approval (required at least "
+                     "\002{6}%)".format(voteid, vote.vote_type,
+                                        vote.vote_target,
+                                        yeas, nays, perc,
+                                        75 if vclass.supermajority else 51))
+            vote.status = 3  # closed - not approved
+            vote.save()
+            return
+        self.msg("\002#{0}\002: \002{1}\002: \037{2}\037. "
+                 "\002\00300,03The yeas have it.\003\002 "
+                 "Yeas: \00303{3}\003. Nays: \00304{4}\003. "
+                 "\00303{5}\003% of approval (required at least "
+                 "\002{6}%)".format(voteid, vote.vote_type,
+                                    vote.vote_target,
+                                    yeas, nays, perc,
+                                    75 if vclass.supermajority else 51))
+        vote.status = 1  # closed - passed
+        vote.save()
+        vclass.on_pass(vote.vote_target)
+        act = Effective(vote_type=vote.vote_type,
+                        close=datetime.utcnow() +
+                        timedelta(seconds=vclass.duration),
+                        vote_target=vote.vote_target)
+        act.save()
+        self.eventloop.schedule_in(vclass.duration, self._expire, act.id)
+
+    def _expire(self, efid):
+        print("EEEXPIRE")
+        vote = Effective.get(Effective.id == efid)
+        vclass = VOTE_NAMES[vote.vote_type](self)
+        vclass.on_expire(vote.vote_target)
+        vote.delete_instance()
+
+    def on_message(self, target, by, message):
+        account = self.users[by]['account']
+        if not account:
+            return  # Unregistered users don't exist
+        account = account.lower()
+        if target == config.CHANNEL:
+            self.count_line(account)
+
+        message = message.strip().lower()
+
+        if not message.startswith('!'):
+            return
+
+        command = message[1:].split()[0]
+        args = message.split()[1:]
+
+        if command == 'vote':
+            if not args:
+                return
+            args[0] = args[0].strip('#')
+            if args[0] in list(VOTE_NAMES):  # creating a vote!
+                self.start_vote(by, args)
+            elif args[0].isdigit() or args[0] in ['y', 'yes', 'n', 'no']:
+                if by not in self.channels[config.CHANNEL]['modes'] \
+                                 .get('v', []):
+                    return self.notice(by, 'Failed: You are not enfranchised.')
+                user = User.get(User.name == account)
+                if args[0].isdigit():
+                    voteid = args[0]
+                    positive = True if args[1] in ['y', 'yes'] else False
+                else:
+                    positive = True if args[0] in ['y', 'yes'] else False
+                    if len(args) == 1:
+                        # TODO: Try with last opened vote
+                        return self.notice(by, 'TODO')
+                    else:
+                        voteid = args[1].strip('#')
+                        if not voteid.isdigit():
+                            self.notice(by, 'Usage: !vote y/n <vote id>')
+                            return
+                try:
+                    elec = Election.get(Election.id == voteid)
+                except Election.DoesNotExist:
+                    return self.notice(by, 'Failed: Vote not found')
+                if elec.status != 0:
+                    return self.notice(by, 'Failed: This vote already '
+                                       'ended')
+                try:
+                    svote = Suffrage.get(Suffrage.emitted_by == user,
+                                         Suffrage.election == elec)
+                    if svote.yea == positive:
+                        self.notice(by, 'Failed: You have already voted on'
+                                    ' \002#{0}\002'.format(voteid))
+                        return
+                    self.notice(by, 'You have changed your vote on '
+                                '\002#{0}\002'.format(voteid))
+
+                except Suffrage.DoesNotExist:
+                    svote = Suffrage(election=elec,
+                                     emitted_by=user)
+                    self.notice(by, 'Thanks for casting your vote in '
+                                '\002#{0}\002'.format(voteid))
+                svote.yea = positive
+                svote.save()
+
 
 client = Kontroler('Kontroler',
                    sasl_username=config.SASL_USER,
@@ -135,7 +373,7 @@ except KeyboardInterrupt:
         if not uinfo.get('lines'):
             continue
         try:
-            user = User.get(User.name == uinfo)
+            user = User.get(User.name == usr)
             user.lines = uinfo['lines']
             user.last_seen = uinfo['last_seen']
         except User.DoesNotExist:
