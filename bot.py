@@ -193,6 +193,7 @@ class Kontroler(BaseClient):
         # 2 - get vote class
         vote = VOTE_NAMES[args[0]](self)
         # 3 - check if vote already exists
+        opener = User.get(User.name == account)
         try:
             vote = Election.select() \
                         .where(Election.vote_type == args[0],
@@ -200,7 +201,7 @@ class Kontroler(BaseClient):
                                Election.vote_target == vote.get_target(args)) \
                         .get()
             # !!! vote already exists
-            return self.msg("Error: TODO!")  # TODO: auto positive vote
+            return self.vote(vote, opener, by)
         except Election.DoesNotExist:
             pass
 
@@ -210,7 +211,6 @@ class Kontroler(BaseClient):
             return
 
         # 6 - Create the vote
-        opener = User.get(User.name == account)
         elec = Election(vote_type=args[0],
                         opened=datetime.utcnow(),
                         close=datetime.utcnow() +
@@ -327,8 +327,12 @@ class Kontroler(BaseClient):
                 else:
                     positive = True if args[0] in ['y', 'yes'] else False
                     if len(args) == 1:
-                        # TODO: Try with last opened vote
-                        return self.notice(by, 'TODO')
+                        xe = Election.select().where(Election.status == 1)
+                        if xe.count() == 1:
+                            voteid = xe.get().id
+                        else:
+                            return self.notice(by, 'Failed: Usage: !vote y/n '
+                                               '<vote id>')
                     else:
                         voteid = args[1].strip('#')
                         if not voteid.isdigit():
@@ -341,23 +345,26 @@ class Kontroler(BaseClient):
                 if elec.status != 0:
                     return self.notice(by, 'Failed: This vote already '
                                        'ended')
-                try:
-                    svote = Suffrage.get(Suffrage.emitted_by == user,
-                                         Suffrage.election == elec)
-                    if svote.yea == positive:
-                        self.notice(by, 'Failed: You have already voted on'
-                                    ' \002#{0}\002'.format(voteid))
-                        return
-                    self.notice(by, 'You have changed your vote on '
-                                '\002#{0}\002'.format(voteid))
+                return self.vote(elec, user, by)
 
-                except Suffrage.DoesNotExist:
-                    svote = Suffrage(election=elec,
-                                     emitted_by=user)
-                    self.notice(by, 'Thanks for casting your vote in '
-                                '\002#{0}\002'.format(voteid))
-                svote.yea = positive
-                svote.save()
+    def vote(self, elec, user, by):
+        try:
+            svote = Suffrage.get(Suffrage.emitted_by == user,
+                                 Suffrage.election == elec)
+            if svote.yea == positive:
+                self.notice(by, 'Failed: You have already voted on'
+                            ' \002#{0}\002'.format(voteid))
+                return
+            self.notice(by, 'You have changed your vote on '
+                        '\002#{0}\002'.format(voteid))
+
+        except Suffrage.DoesNotExist:
+            svote = Suffrage(election=elec,
+                             emitted_by=user)
+            self.notice(by, 'Thanks for casting your vote in '
+                        '\002#{0}\002'.format(voteid))
+        svote.yea = positive
+        svote.save()
 
 
 client = Kontroler('Kontroler',
