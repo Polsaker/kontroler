@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 class BaseVote(object):
     required_time = 0
     required_lines = 0
-    duration = 120
-    openfor = 15
-    quorum = 2
+    duration = 259200  # 3 days
+    openfor = 1800  # 30 minutes
+    quorum = 3
     supermajority = False
 
     is_target_user = True  # True if target is a user in the channel
