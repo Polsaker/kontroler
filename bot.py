@@ -353,16 +353,16 @@ class Kontroler(BaseClient):
                                  Suffrage.election == elec)
             if svote.yea == positive:
                 self.notice(by, 'Failed: You have already voted on'
-                            ' \002#{0}\002'.format(voteid))
+                            ' \002#{0}\002'.format(elec))
                 return
             self.notice(by, 'You have changed your vote on '
-                        '\002#{0}\002'.format(voteid))
+                        '\002#{0}\002'.format(elec))
 
         except Suffrage.DoesNotExist:
             svote = Suffrage(election=elec,
                              emitted_by=user)
             self.notice(by, 'Thanks for casting your vote in '
-                        '\002#{0}\002'.format(voteid))
+                        '\002#{0}\002'.format(elec))
         svote.yea = positive
         svote.save()
 
