@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import pydle
 import re
+import copy
 from datetime import datetime, timedelta
 from peewee import SqliteDatabase, Model, CharField, DateTimeField
 from peewee import ForeignKeyField, BooleanField, IntegerField
@@ -365,6 +366,23 @@ class Kontroler(BaseClient):
                         '\002#{0}\002'.format(elec))
         svote.yea = positive
         svote.save()
+    
+    def _rename_user(self, user, new):
+        if user in self.users:
+            self.users[new] = copy.copy(self.users[user])
+            self.users[new]['nickname'] = new
+            del self.users[user]
+        else:
+            self._create_user(new)
+            if new not in self.users:
+                return
+
+        for ch in self.channels.values():
+            # Rename user in channel list.
+            if user in ch['users']:
+                ch['users'].discard(user)
+                ch['users'].add(new)
+
 
 
 client = Kontroler('Kontroler',
