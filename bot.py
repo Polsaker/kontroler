@@ -363,7 +363,7 @@ class Kontroler(BaseClient):
             svote = Suffrage(election=elec,
                              emitted_by=user)
             self.notice(by, 'Thanks for casting your vote in '
-                        '\002#{0}\002'.format(elec))
+                        '\002#{0}\002'.format(elec.id))
         svote.yea = positive
         svote.save()
     
