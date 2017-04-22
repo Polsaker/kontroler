@@ -325,17 +325,18 @@ class Kontroler(BaseClient):
                 vpar = votelistParser.parse_args(args[1:])
                 if not vpar.type:
                     votes = Election.select().where(Election.status == 0) \
-                                    .limit(5).dicts()
+                                    .limit(5)
                 else:
                     if vpar.type not in list(VOTE_NAMES):
                         return self.notice(by, 'Failed: Unknown vote type')
                     votes = Election.select() \
-                                    .where(Election.vote_type == l.type) \
-                                    .limit(10).dicts()
+                                    .where(Election.vote_type == vpar.type) \
+                                    .limit(10)
                 if not votes:
                     return self.notice(by, 'No matching results.')
                 user = User.get(User.name == account)
                 for vote in votes:
+                    print(vote)
                     posit = Suffrage.select() \
                                     .where((Suffrage.election == vote) &
                                            (Suffrage.yea == True)).count()
@@ -351,18 +352,18 @@ class Kontroler(BaseClient):
                     except Suffrage.DoesNotExist:
                         you = '\00300,14---\003'
                     if vote.status == 0:
-                        stat = '\00307,14ACTIVE\003'
+                        stat = '\00314,07ACTIVE\003'
                     elif vote.status == 1:
-                        stat = '\00303,00PASSED\003'
+                        stat = '\00300,03PASSED\003'
                     elif vote.status == 2:
-                        stat = '\00304,00QUORUM\003'
+                        stat = '\00300,04QUORUM\003'
                     elif vote.status == 3:
-                        stat = '\00304,00FAILED\003'
+                        stat = '\00300,04FAILED\003'
                     elif vote.status == 4:
-                        stat = '\00304,00QUORUM\003'
+                        stat = '\00300,04VETOED\003'
                     else:
-                        stat = '\00302,00LIZARD\003'
-                    self.msg('\002#{0} YEA: \00303{1}\003 NAY: \00304{2} '
+                        stat = '\00300,02LIZARD\003'
+                    self.msg('\002#{0} YEA: \00303{1}\003 NAY: \00304{2}\003 '
                              'YOU: {3} {4}'.format(vote.id, posit, negat, you,
                                                    stat))
 
