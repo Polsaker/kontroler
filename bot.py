@@ -176,7 +176,7 @@ class Kontroler(BaseClient):
                 dbuser.save()
             if (user['lines'] % 5) == 0:
                 dbuser = User.get(User.name == account)
-                dbuser.lines = user['lines']
+                dbuser.lines += 5
                 dbuser.last_seen = user['last_seen']
                 dbuser.save()
         else:
@@ -336,8 +336,12 @@ class Kontroler(BaseClient):
                     return self.notice(by, 'No matching results.')
                 user = User.get(User.name == account)
                 for vote in votes:
-                    posit = vote.suffrages.where(Suffrage.yea == True).count()
-                    negat = vote.suffrages.where(Suffrage.yea == False).count()
+                    posit = Suffrage.select() \
+                                    .where((Suffrage.election == vote) &&
+                                           (Suffrage.yea == True)).count()
+                    negat = Suffrage.select() \
+                                    .where((Suffrage.election == vote) &&
+                                           (Suffrage.yea == False)).count()
                     try:
                         yv = Suffrage.get(Suffrage.emitted_by == user)
                         if yv.yea:
@@ -427,7 +431,6 @@ class Kontroler(BaseClient):
             if user in ch['users']:
                 ch['users'].discard(user)
                 ch['users'].add(new)
-
 
 
 client = Kontroler('Kontroler',
