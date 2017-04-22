@@ -336,7 +336,6 @@ class Kontroler(BaseClient):
                     return self.notice(by, 'No matching results.')
                 user = User.get(User.name == account)
                 for vote in votes:
-                    print(vote)
                     posit = Suffrage.select() \
                                     .where((Suffrage.election == vote) &
                                            (Suffrage.yea == True)).count()
@@ -350,9 +349,9 @@ class Kontroler(BaseClient):
                         else:
                             you = '\00300,04NAY\003'
                     except Suffrage.DoesNotExist:
-                        you = '\00300,14---\003'
+                        you = '\00300,01---\003'
                     if vote.status == 0:
-                        stat = '\00314,07ACTIVE\003'
+                        stat = '\00301,07ACTIVE\003'
                     elif vote.status == 1:
                         stat = '\00300,03PASSED\003'
                     elif vote.status == 2:
@@ -363,9 +362,38 @@ class Kontroler(BaseClient):
                         stat = '\00300,04VETOED\003'
                     else:
                         stat = '\00300,02LIZARD\003'
-                    self.msg('\002#{0} YEA: \00303{1}\003 NAY: \00304{2}\003 '
-                             'YOU: {3} {4}'.format(vote.id, posit, negat, you,
-                                                   stat))
+                    if vote.status == 0:
+                        tdel = vote.close - datetime.utcnow()
+                        if tdel.total_seconds() > 3600:
+                            ostr = '{0} \002hours left\002'.format(
+                                round(tdel.total_seconds()/3600, 2))
+                        elif tdel.total_seconds() > 60:
+                            ostr = '{0} \002minutes left\002'.format(
+                                round(tdel.total_seconds()/60, 2))
+                        else:
+                            ostr = '{0} \002seconds left\002'.format(
+                                tdel.total_seconds())
+                    else:
+                        tdel = datetime.utcnow() - vote.close
+                        if tdel.total_seconds() > 604800:
+                            ostr = '{0} \002weeks ago\002'.format(
+                                int(tdel.total_seconds()/604800))
+                        elif tdel.total_seconds() > 86400:
+                            ostr = '{0} \002days ago\002'.format(
+                                int(tdel.total_seconds()/86400))
+                        elif tdel.total_seconds() > 3600:
+                            ostr = '{0} \002hours ago\002'.format(
+                                round(tdel.total_seconds()/3600, 2))
+                        elif tdel.total_seconds() > 60:
+                            ostr = '{0} \002minutes ago\002'.format(
+                                round(tdel.total_seconds()/60, 2))
+                        else:
+                            ostr = '{0} \002seconds ago\002'.format(
+                                tdel.total_seconds())
+                    self.msg('\002#{0} YEA: \00303{1}\003 NAY: \00305{2}\003 '
+                             'YOU: {3} {4} {5}\002 \037{6}\037 - {7}'.format(
+                                 vote.id, posit, negat, you, stat,
+                                 vote.vote_type, vote.vote_target, ostr))
 
             elif args[0].isdigit() or args[0] in ['y', 'yes', 'n', 'no']:
                 if by not in self.channels[config.CHANNEL]['modes'] \
