@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import pydle
+import argparse
 import re
 import copy
 from datetime import datetime, timedelta
@@ -13,6 +14,9 @@ VOTE_NAMES = {"civis": votes.Civis,
               "arripio": votes.Arripio}
 
 db = SqliteDatabase('users.db')
+
+votelistParser = argparse.ArgumentParser()
+votelistParser.add_argument('--type')
 
 
 class User(Model):
@@ -317,6 +321,47 @@ class Kontroler(BaseClient):
             args[0] = args[0].strip('#')
             if args[0] in list(VOTE_NAMES):  # creating a vote!
                 self.start_vote(by, args)
+            elif args[0] == "list":
+                vpar = votelistParser.parse_args(args[1:])
+                if not vpar.type:
+                    votes = Election.select().where(Election.status == 0) \
+                                    .limit(5).dicts()
+                else:
+                    if vpar.type not in list(VOTE_NAMES):
+                        return self.notice(by, 'Failed: Unknown vote type')
+                    votes = Election.select() \
+                                    .where(Election.vote_type == l.type) \
+                                    .limit(10).dicts()
+                if not votes:
+                    return self.notice(by, 'No matching results.')
+                user = User.get(User.name == account)
+                for vote in votes:
+                    posit = vote.suffrages.where(Suffrage.yea == True).count()
+                    negat = vote.suffrages.where(Suffrage.yea == False).count()
+                    try:
+                        yv = Suffrage.get(Suffrage.emitted_by == user)
+                        if yv.yea:
+                            you = '\00300,03YEA\003'
+                        else:
+                            you = '\00300,04NAY\003'
+                    except Suffrage.DoesNotExist:
+                        you = '\00300,14---\003'
+                    if vote.status == 0:
+                        stat = '\00307,14ACTIVE\003'
+                    elif vote.status == 1:
+                        stat = '\00303,00PASSED\003'
+                    elif vote.status == 2:
+                        stat = '\00304,00QUORUM\003'
+                    elif vote.status == 3:
+                        stat = '\00304,00FAILED\003'
+                    elif vote.status == 4:
+                        stat = '\00304,00QUORUM\003'
+                    else:
+                        stat = '\00302,00LIZARD\003'
+                    self.msg('\002#{0} YEA: \00303{1}\003 NAY: \00304{2} '
+                             'YOU: {3} {4}'.format(vote.id, posit, negat, you,
+                                                   stat))
+
             elif args[0].isdigit() or args[0] in ['y', 'yes', 'n', 'no']:
                 if by not in self.channels[config.CHANNEL]['modes'] \
                                  .get('v', []):
@@ -346,9 +391,9 @@ class Kontroler(BaseClient):
                 if elec.status != 0:
                     return self.notice(by, 'Failed: This vote already '
                                        'ended')
-                return self.vote(elec, user, by)
+                return self.vote(elec, user, by, positive)
 
-    def vote(self, elec, user, by):
+    def vote(self, elec, user, by, positive=True):
         try:
             svote = Suffrage.get(Suffrage.emitted_by == user,
                                  Suffrage.election == elec)
@@ -366,7 +411,7 @@ class Kontroler(BaseClient):
                         '\002#{0}\002'.format(elec.id))
         svote.yea = positive
         svote.save()
-    
+
     def _rename_user(self, user, new):
         if user in self.users:
             self.users[new] = copy.copy(self.users[user])
