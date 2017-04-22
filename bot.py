@@ -372,7 +372,7 @@ class Kontroler(BaseClient):
                                 round(tdel.total_seconds()/60, 2))
                         else:
                             ostr = '{0} \002seconds left\002'.format(
-                                tdel.total_seconds())
+                                int(tdel.total_seconds()))
                     else:
                         tdel = datetime.utcnow() - vote.close
                         if tdel.total_seconds() > 604800:
@@ -389,7 +389,7 @@ class Kontroler(BaseClient):
                                 round(tdel.total_seconds()/60, 2))
                         else:
                             ostr = '{0} \002seconds ago\002'.format(
-                                tdel.total_seconds())
+                                int(tdel.total_seconds()))
                     self.msg('\002#{0} YEA: \00303{1}\003 NAY: \00305{2}\003 '
                              'YOU: {3} {4} {5}\002 \037{6}\037 - {7}'.format(
                                  vote.id, posit, negat, you, stat,
