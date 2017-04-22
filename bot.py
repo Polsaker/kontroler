@@ -337,10 +337,10 @@ class Kontroler(BaseClient):
                 user = User.get(User.name == account)
                 for vote in votes:
                     posit = Suffrage.select() \
-                                    .where((Suffrage.election == vote) &&
+                                    .where((Suffrage.election == vote) &
                                            (Suffrage.yea == True)).count()
                     negat = Suffrage.select() \
-                                    .where((Suffrage.election == vote) &&
+                                    .where((Suffrage.election == vote) &
                                            (Suffrage.yea == False)).count()
                     try:
                         yv = Suffrage.get(Suffrage.emitted_by == user)
