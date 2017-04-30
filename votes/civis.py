@@ -5,7 +5,7 @@ from .base import BaseVote
 class Civis(BaseVote):
     required_time = 172800  # 2 days
     required_lines = 250
-    duration = 604800  # 7 days
+    duration = 2419200  # 28 days
 
     def on_pass(self, target):
         self.irc.message('ChanServ', 'FLAGS {0} {1} +V'
