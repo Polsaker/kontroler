@@ -87,6 +87,15 @@ def display_time(seconds, granularity=2):
     return ', '.join([x for x in result[:granularity] if x is not None])
 
 
+def timestamp(seconds, tm, lap=60, decimals=2):
+    time = round(seconds / float(tm), decimals)
+    if time.is_integer():
+        secs = ''
+    else:
+        secs = '.' + str((int((time - int(time)) * 100) * lap) / 100)
+    return float('%d%s' % (int(time), secs))
+
+
 BaseClient = pydle.featurize(pydle.features.RFC1459Support,
                              pydle.features.IRCv3Support,
                              pydle.features.WHOXSupport)
@@ -369,7 +378,7 @@ class Kontroler(BaseClient):
                                 round(tdel.total_seconds()/3600, 2))
                         elif tdel.total_seconds() > 60:
                             ostr = '{0} \002minutes left\002'.format(
-                                round(tdel.total_seconds()/60, 2))
+                                timestamp(tdel.total_seconds(), 60))
                         else:
                             ostr = '{0} \002seconds left\002'.format(
                                 int(tdel.total_seconds()))
@@ -386,7 +395,7 @@ class Kontroler(BaseClient):
                                 round(tdel.total_seconds()/3600, 2))
                         elif tdel.total_seconds() > 60:
                             ostr = '{0} \002minutes ago\002'.format(
-                                round(tdel.total_seconds()/60, 2))
+                                timestamp(tdel.total_seconds(), 60))
                         else:
                             ostr = '{0} \002seconds ago\002'.format(
                                 int(tdel.total_seconds()))
