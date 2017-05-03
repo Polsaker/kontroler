@@ -115,21 +115,23 @@ class Kontroler(BaseClient):
         if user == self.nickname:
             self.message('ChanServ', 'FLAGS {}'.format(channel))
 
-        for elec in Election.select().where(Election.status == 0):
-            if elec.close < datetime.utcnow():
-                # Already closed!!
-                self._closevote(elec.id)
-            else:
-                closes_in = elec.close - datetime.utcnow()
-                self.eventloop.schedule_in(closes_in, self._closevote, elec.id)
+            for elec in Election.select().where(Election.status == 0):
+                if elec.close < datetime.utcnow():
+                    # Already closed!!
+                    self._closevote(elec.id)
+                else:
+                    closes_in = elec.close - datetime.utcnow()
+                    self.eventloop.schedule_in(closes_in, self._closevote, elec.id)
 
-        for elec in Effective.select():
-            if elec.close < datetime.utcnow():
-                # Already closed!!
-                self._expire(elec.id)
-            else:
-                closes_in = elec.close - datetime.utcnow()
-                self.eventloop.schedule_in(closes_in, self._expire, elec.id)
+            for elec in Effective.select():
+                if elec.close < datetime.utcnow():
+                    # Already closed!!
+                    self._expire(elec.id)
+                else:
+                    closes_in = elec.close - datetime.utcnow()
+                    self.eventloop.schedule_in(closes_in, self._expire, elec.id)
+        else:
+            self.whois(user)
 
     def on_notice(self, target, by, message):
         if by == "ChanServ" and target == config.CHANNEL:
@@ -300,7 +302,11 @@ class Kontroler(BaseClient):
         vote.delete_instance()
 
     def on_message(self, target, by, message):
-        account = self.users[by]['account']
+        try:
+            account = self.users[by]['account']
+        except KeyError:
+            print("{0}: Not identified/not found".format(by))
+            return
         if not account:
             return  # Unregistered users don't exist
         account = account.lower()
