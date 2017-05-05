@@ -11,7 +11,7 @@ import config
 
 VOTE_NAMES = {"civis": votes.Civis,
               "censure": votes.Censure,
-              "arripio": votes.Arripio}
+              "staff": votes.Staff}
 
 db = SqliteDatabase('users.db')
 

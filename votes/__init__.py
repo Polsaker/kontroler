@@ -1,1 +1,1 @@
-from .civis import Civis, Censure, Arripio
+from .civis import Civis, Censure, Staff
