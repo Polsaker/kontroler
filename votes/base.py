@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import config
 
 
 class BaseVote(object):
@@ -21,7 +22,7 @@ class BaseVote(object):
             except AttributeError:
                 return False
         else:
-            return args[1]
+            return " ".join(args[1:])
 
     def vote_check(self, args, by):
         if self.is_target_user:
@@ -51,3 +52,18 @@ class BaseVote(object):
                                        .format(user['lines'],
                                                self.required_lines))
         return True  # True = check passed
+
+
+class Opine(BaseVote):
+    openfor = 900  # 15 minutes
+    
+    is_target_user = False
+
+    def on_pass(self, issue):
+        self.irc.msg("The people of {0} decided \002{1}\002".format(
+                    config.CHANNEL,
+                    issue))
+                    
+
+    def on_expire(self, target):
+        pass
