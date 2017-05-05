@@ -39,22 +39,29 @@ class Censure(BaseVote):
         if 'V' not in f:
             return self.irc.notice(by, "Can't start vote: User at issue is "
                                    "not enfranchised.")
+        if 'o' in f:
+            return self.irc.notice(by, "Can't start vote: User at issue is "
+                                   "a staff.")
         return super().vote_check(args, by)
 
 
-class Arripio(object):
-    temporary = False  # Permanent
-    openfor = 86400
-    quorum = 5
-    supermajority = True
+class Staff(BaseVote):
+    required_time = 2419200  # 28 days
+    required_lines = 1500
+    duration = 2419200  # 28 days
+    openfor = 86400 # 1 day
 
     def on_pass(self, target):
-        self.irc.message('ChanServ', 'FLAGS {0} {1} -Vo'
+        self.irc.message('ChanServ', 'FLAGS {0} {1} +o'
+                         .format(config.CHANNEL, target))
+
+    def on_expire(self, target):
+        self.irc.message('ChanServ', 'FLAGS {0} {1} -o'
                          .format(config.CHANNEL, target))
 
     def vote_check(self, args, by):
         f = self.irc.usermap[self.get_target(args)]['flags']
-        if 'V' not in f or 'o' not in f:
+        if 'V' not in f:
             return self.irc.notice(by, "Can't start vote: User at issue is "
                                    "not enfranchised.")
         return super().vote_check(args, by)

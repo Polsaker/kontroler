@@ -405,6 +405,8 @@ class Kontroler(BaseClient):
                 if by not in self.channels[config.CHANNEL]['modes'] \
                                  .get('v', []):
                     return self.notice(by, 'Failed: You are not enfranchised.')
+                if len(args) == 1:
+                    pass  # vote INFO
                 user = User.get(User.name == account)
                 if args[0].isdigit():
                     voteid = args[0]
