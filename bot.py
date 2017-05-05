@@ -199,6 +199,8 @@ class Kontroler(BaseClient):
             return self.notice(by, 'Failed: You are not enfranchised.')
         # 2 - get vote class
         vote = VOTE_NAMES[args[0]](self)
+        if not vote.get_target(args):
+            return self.notice(by, 'Failed: Target user not found or not identified.')
         # 3 - check if vote already exists
         opener = User.get(User.name == account)
         try:

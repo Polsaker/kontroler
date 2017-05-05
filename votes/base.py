@@ -16,7 +16,10 @@ class BaseVote(object):
 
     def get_target(self, args):
         if self.is_target_user:
-            return self.irc.users[args[1]]['account'].lower()
+            try:
+                return self.irc.users[args[1]]['account'].lower()
+            except KeyError:
+                return False
         else:
             return args[1]
 
