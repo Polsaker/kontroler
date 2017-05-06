@@ -35,22 +35,23 @@ class BaseVote(object):
             if not user or not user.get('lines'):
                 return self.irc.notice(by, 'Can\'t start vote: User has never '
                                        'interacted with the channel.')
-            reqtime = datetime.utcnow() - timedelta(seconds=self.required_time)
+            
+            if self.required_time != 0:
+                reqtime = datetime.utcnow() - timedelta(seconds=self.required_time)
+                if user['first_seen'] > reqtime:
+                    return self.irc.notice(by, "Can't start vote: User at issue "
+                                           "has not been present long enough for "
+                                           "consideration.")
 
-            if user['first_seen'] > reqtime:
-                return self.irc.notice(by, "Can't start vote: User at issue "
-                                       "has not been present long enough for "
-                                       "consideration.")
+                if user['last_seen'] < reqtime:
+                    return self.irc.notice(by, "Can't start vote: User at issue "
+                                           "has not been active recently.")
 
-            if user['last_seen'] < reqtime:
-                return self.irc.notice(by, "Can't start vote: User at issue "
-                                       "has not been active recently.")
-
-            if user['lines'] < self.required_lines:
-                return self.irc.notice(by, "Can't start vote: User at issue "
-                                       "has {0} of {1} required lines"
-                                       .format(user['lines'],
-                                               self.required_lines))
+                if user['lines'] < self.required_lines:
+                    return self.irc.notice(by, "Can't start vote: User at issue "
+                                           "has {0} of {1} required lines"
+                                           .format(user['lines'],
+                                                   self.required_lines))
         return True  # True = check passed
 
 
