@@ -230,7 +230,7 @@ class Kontroler(BaseClient):
                         opened_by=opener,
                         vote_target=vote.get_target(args))
         elec.save()
-        if not (vote.is_target_user and opener.name != vote.get_target(args)):
+        if not (vote.is_target_user and opener.name == vote.get_target(args)):
             # 7 - Emit self vote
             svote = Suffrage(election=elec,
                              yea=True,
@@ -446,7 +446,8 @@ class Kontroler(BaseClient):
             elec = Election.get(Election.id == voteid)
         except Election.DoesNotExist:
             return self.notice(by, 'Failed: Vote not found')
-        
+        vtype = VOTE_NAMES[elec.vote_type](self)
+
         if elec.status == 0:
             tdel = elec.close - datetime.utcnow()
             ostr = self._resolve_time(tdel, 'left')
@@ -456,14 +457,48 @@ class Kontroler(BaseClient):
         self.notice(by, "Information on vote #{0}: \002{1}\002 ({2})".format(
                         elec.id, self._resolve_status(elec.status), ostr))
         
-        try:
-            eff = Effective.get(Effective.election == elec)
-            tdel = eff.close - datetime.utcnow()
-            ostr = self._resolve_time(tdel, 'left')
-            self.notice(by, " - \002\00303ACTIVE\003\002 {0}".format(ostr))
-        except Effective.DoesNotExist:
-            self.notice(by, " - \002\00303NOT EFFECTIVE ANYMORE\003\002 (expired)")
-            pass
+        votes = Suffrage.select().where(Suffrage.election == elec)
+        yeacount = 0
+        yeas = ""
+        naycount = 0
+        nays = ""
+        for vot in votes:
+            if vot.yea:
+                yeacount += 1
+                yeas += vot.emitted_by.name + " "
+            else:
+                naycount += 1
+                nays += vot.emitted_by.name + " "
+
+        votecount = yeacount + naycount
+        perc = int((yeacount / votecount)*100) if votecount != 0 else 0
+        percneeded = 75 if vtype.supermajority else 50
+        if elec.status == 1:
+            try:
+                eff = Effective.get(Effective.election == elec)
+                tdel = eff.close - datetime.utcnow()
+                ostr = self._resolve_time(tdel, 'left')
+                self.notice(by, " - \002\00303ACTIVE\003\002 {0}".format(ostr))
+            except Effective.DoesNotExist:
+                self.notice(by, " - \002\00304NOT EFFECTIVE ANYMORE\003\002 (expired)")
+                pass
+        elif elec.status == 0:
+            if votecount < vtype.quorum:
+                self.notice(by, " - \002\00307Needs {0} more votes for quorum\002".format(vtype.quorum-votecount))
+            else:
+                if perc < percneeded:
+                    self.notice(by, " - \002\00307Motion is not going to pass ({0}% of approval, needs {1}%)\002".format(perc, percneeded))
+                else:
+                    self.notice(by, " - \002\00303Motion is passing ({0}% of approval, needs {1}%)\002".format(perc, percneeded))
+                        
+        if yeacount == 0:
+            yeas = " - "
+        if naycount == 0:
+            nays = " - "
+            
+        self.notice(by, " - \002\00303YEA\003\002 - \002{0}\002: {1}".format(yeacount, yeas))
+        self.notice(by, " - \002\00304NAY\003\002 - \002{0}\002: {1}".format(naycount, nays))
+        
 
     def vote(self, elec, user, by, positive=True):
         vtype = VOTE_NAMES[elec.vote_type](self)
