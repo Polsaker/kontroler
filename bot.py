@@ -440,7 +440,7 @@ class Kontroler(BaseClient):
 
     def vote(self, elec, user, by, positive=True):
         vtype = VOTE_NAMES[elec.vote_type](self)
-        if vtype.is_target_user and user.name == vtype.vote_target:
+        if vtype.is_target_user and user.name == elec.vote_target:
             return self.notice(by, 'Failed: You can\'t vote for yourself')
         try:
             svote = Suffrage.get(Suffrage.emitted_by == user,
