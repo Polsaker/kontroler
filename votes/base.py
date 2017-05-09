@@ -11,6 +11,7 @@ class BaseVote(object):
     quorum = 3
     supermajority = False
     name = "base"
+    cooldown = 86400  # 1 day
 
     is_target_user = True  # True if target is a user in the channel
 
@@ -48,6 +49,15 @@ class BaseVote(object):
                     elecid = "Unknown election"
                 return self.irc.notice(by, 'Can\'t start vote: There\'s an identical motion already active (\002{0}\002).'.format(elecid))
             except Effective.DoesNotExist:
+                pass
+            
+            try:
+                x = Election.select().where((Election.vote_type == self.name) &
+                                            (Election.vote_target == self.get_target(args)) &
+                                            (Election.status == 3) &
+                                            (Election.close < (datetime.utcnow() + timedelta(seconds=self.cooldown)))).get()
+                return self.irc.notice(by, 'Can\'t start vote: There was a similar vote that failed not too long ago (\002{0}\002).'.format(x.id))
+            except Election.DoesNotExist:
                 pass
             
             if self.required_time != 0:

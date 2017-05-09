@@ -55,6 +55,7 @@ class Staff(BaseVote):
     quorum = 5
     supermajority = True
     name = "staff"
+    cooldown = 604800  # 7 days
     
     def on_pass(self, target):
         self.irc.message('ChanServ', 'FLAGS {0} {1} +o'
