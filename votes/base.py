@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import config
+from models import Effective, Election
 
 
 class BaseVote(object):
@@ -9,6 +10,7 @@ class BaseVote(object):
     openfor = 1800  # 30 minutes
     quorum = 3
     supermajority = False
+    name = "base"
 
     is_target_user = True  # True if target is a user in the channel
 
@@ -35,6 +37,18 @@ class BaseVote(object):
             if not user or not user.get('lines'):
                 return self.irc.notice(by, 'Can\'t start vote: User has never '
                                        'interacted with the channel.')
+                                    
+            try:
+                x = Effective.select().where((Effective.vote_type == self.name) &
+                                             (Effective.vote_target == self.get_target(args))) \
+                             .get()
+                try:
+                    elecid = x.election.id
+                except Election.DoesNotExist:
+                    elecid = "Unknown election"
+                return self.irc.notice(by, 'Can\'t start vote: There\'s an identical motion already active (\002{0}\002).'.format(elecid))
+            except Effective.DoesNotExist:
+                pass
             
             if self.required_time != 0:
                 reqtime = datetime.utcnow() - timedelta(seconds=self.required_time)
@@ -57,6 +71,7 @@ class BaseVote(object):
 
 class Opine(BaseVote):
     openfor = 900  # 15 minutes
+    name = "opine"
     
     is_target_user = False
 

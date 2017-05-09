@@ -6,6 +6,7 @@ class Civis(BaseVote):
     required_time = 172800  # 2 days
     required_lines = 250
     duration = 2419200  # 28 days
+    name = "civis"
 
     def on_pass(self, target):
         self.irc.message('ChanServ', 'FLAGS {0} {1} +V'
@@ -25,6 +26,7 @@ class Civis(BaseVote):
 
 class Censure(BaseVote):
     supermajority = True
+    name = "censure"
 
     def on_pass(self, target):
         self.irc.message('ChanServ', 'FLAGS {0} {1} -V'
@@ -52,7 +54,8 @@ class Staff(BaseVote):
     openfor = 86400 # 1 day
     quorum = 5
     supermajority = True
-
+    name = "staff"
+    
     def on_pass(self, target):
         self.irc.message('ChanServ', 'FLAGS {0} {1} +o'
                          .format(config.CHANNEL, target))
