@@ -229,7 +229,7 @@ class Kontroler(BaseClient):
                         opened_by=opener,
                         vote_target=vote.get_target(args))
         elec.save()
-        if vote.is_target_user and opener.name != vote.get_target(args):
+        if (vote.is_target_user and opener.name != vote.get_target(args)) or not vote.is_target_user:
             # 7 - Emit self vote
             svote = Suffrage(election=elec,
                              yea=True,
@@ -440,7 +440,7 @@ class Kontroler(BaseClient):
 
     def vote(self, elec, user, by, positive=True):
         vtype = VOTE_NAMES[elec.vote_type]()
-        if vtype.is_target_user and user.name == vtype.vote_target:
+        if (vtype.is_target_user and user.name == vtype.vote_target) or not vtype.is_target_user:
             return self.notice(by, 'Failed: You can\'t vote for yourself')
         try:
             svote = Suffrage.get(Suffrage.emitted_by == user,
