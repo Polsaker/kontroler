@@ -52,6 +52,7 @@ class Suffrage(Model):
 
 
 class Effective(Model):
+    election = ForeignKeyField(Election, related_name='effective')
     vote_type = CharField()
     close = DateTimeField()
     vote_target = CharField()
@@ -304,6 +305,41 @@ class Kontroler(BaseClient):
         vclass = VOTE_NAMES[vote.vote_type](self)
         vclass.on_expire(vote.vote_target)
         vote.delete_instance()
+        
+    def _resolve_status(self, status):
+        if status == 0:
+            stat = '\00301,07ACTIVE\003'
+        elif status == 1:
+            stat = '\00300,03PASSED\003'
+        elif status == 2:
+            stat = '\00300,04QUORUM\003'
+        elif status == 3:
+            stat = '\00300,04FAILED\003'
+        elif status == 4:
+            stat = '\00300,04VETOED\003'
+        else:
+            stat = '\00300,02LIZARD\003'
+        
+        return stat
+        
+    def _resolve_time(self, delta, word):
+        if delta.total_seconds() > 604800:
+            ostr = '{0} \002weeks {1}\002'.format(
+                int(delta.total_seconds()/604800), word)
+        elif delta.total_seconds() > 86400:
+            ostr = '{0} \002days {1}\002'.format(
+                int(delta.total_seconds()/86400), word)
+        elif delta.total_seconds() > 3600:
+            ostr = '{0} \002hours {1}\002'.format(
+                round(delta.total_seconds()/3600, 2), word)
+        elif delta.total_seconds() > 60:
+            ostr = '{0} \002minutes {1}\002'.format(
+                round(delta.total_seconds()/60, 2), word)
+        else:
+            ostr = '{0} \002seconds {1}\002'.format(
+                int(delta.total_seconds()), word)
+        
+        return ostr
 
     def on_message(self, target, by, message):
         try:
@@ -360,46 +396,13 @@ class Kontroler(BaseClient):
                             you = '\00300,04NAY\003'
                     except Suffrage.DoesNotExist:
                         you = '\00300,01---\003'
-                    if vote.status == 0:
-                        stat = '\00301,07ACTIVE\003'
-                    elif vote.status == 1:
-                        stat = '\00300,03PASSED\003'
-                    elif vote.status == 2:
-                        stat = '\00300,04QUORUM\003'
-                    elif vote.status == 3:
-                        stat = '\00300,04FAILED\003'
-                    elif vote.status == 4:
-                        stat = '\00300,04VETOED\003'
-                    else:
-                        stat = '\00300,02LIZARD\003'
+                    stat = self._resolve_status(vote.status)
                     if vote.status == 0:
                         tdel = vote.close - datetime.utcnow()
-                        if tdel.total_seconds() > 3600:
-                            ostr = '{0} \002hours left\002'.format(
-                                round(tdel.total_seconds()/3600, 2))
-                        elif tdel.total_seconds() > 60:
-                            ostr = '{0} \002minutes left\002'.format(
-                                round(tdel.total_seconds()/60, 2))
-                        else:
-                            ostr = '{0} \002seconds left\002'.format(
-                                int(tdel.total_seconds()))
+                        ostr = self._resolve_time(tdel, 'left')
                     else:
                         tdel = datetime.utcnow() - vote.close
-                        if tdel.total_seconds() > 604800:
-                            ostr = '{0} \002weeks ago\002'.format(
-                                int(tdel.total_seconds()/604800))
-                        elif tdel.total_seconds() > 86400:
-                            ostr = '{0} \002days ago\002'.format(
-                                int(tdel.total_seconds()/86400))
-                        elif tdel.total_seconds() > 3600:
-                            ostr = '{0} \002hours ago\002'.format(
-                                round(tdel.total_seconds()/3600, 2))
-                        elif tdel.total_seconds() > 60:
-                            ostr = '{0} \002minutes ago\002'.format(
-                                round(tdel.total_seconds()/60, 2))
-                        else:
-                            ostr = '{0} \002seconds ago\002'.format(
-                                int(tdel.total_seconds()))
+                        ostr = self._resolve_time(tdel, 'ago')
                     self.msg('\002#{0} YEA: \00303{1}\003 NAY: \00305{2}\003 '
                              'YOU: {3} {4} {5}\002 \037{6}\037 - {7}'.format(
                                  vote.id, posit, negat, you, stat,
@@ -409,10 +412,10 @@ class Kontroler(BaseClient):
                 if by not in self.channels[config.CHANNEL]['modes'] \
                                  .get('v', []):
                     return self.notice(by, 'Failed: You are not enfranchised.')
-                if len(args) == 1:
-                    pass  # vote INFO
                 user = User.get(User.name == account)
                 if args[0].isdigit():
+                    if len(args) == 1:
+                        return self.vote_info(by, args[0])
                     voteid = args[0]
                     positive = True if args[1] in ['y', 'yes'] else False
                 else:
@@ -437,6 +440,30 @@ class Kontroler(BaseClient):
                     return self.notice(by, 'Failed: This vote already '
                                        'ended')
                 return self.vote(elec, user, by, positive)
+
+    def vote_info(self, by, voteid):
+        try:
+            elec = Election.get(Election.id == voteid)
+        except Election.DoesNotExist:
+            return self.notice(by, 'Failed: Vote not found')
+        
+        if elec.status == 0:
+            tdel = elec.close - datetime.utcnow()
+            ostr = self._resolve_time(tdel, 'left')
+        else:
+            tdel = datetime.utcnow() - elec.close
+            ostr = self._resolve_time(tdel, 'ago')
+        self.notice(by, "Information on vote #{0}: \002{1}\002 ({2})".format(
+                        elec.id, self._resolve_status(elec.status), ostr))
+        
+        try:
+            eff = Effective.get(Effective.election == elec)
+            tdel = eff.close - datetime.utcnow()
+            ostr = self._resolve_time(tdel, 'left')
+            self.notice(by, " - \002\00303ACTIVE\003\002 {0}".format(ostr))
+        except Effective.DoesNotExist:
+            self.notice(by, " - \002\00303NOT EFFECTIVE ANYMORE\003\002 (expired)")
+            pass
 
     def vote(self, elec, user, by, positive=True):
         vtype = VOTE_NAMES[elec.vote_type](self)
