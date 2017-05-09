@@ -55,7 +55,7 @@ class BaseVote(object):
                 x = Election.select().where((Election.vote_type == self.name) &
                                             (Election.vote_target == self.get_target(args)) &
                                             (Election.status == 3) &
-                                            (Election.close < (datetime.utcnow() + timedelta(seconds=self.cooldown)))).get()
+                                            (Election.close > (datetime.utcnow() - timedelta(seconds=self.cooldown)))).get()
                 return self.irc.notice(by, 'Can\'t start vote: There was a similar vote that failed not too long ago (\002{0}\002).'.format(x.id))
             except Election.DoesNotExist:
                 pass
