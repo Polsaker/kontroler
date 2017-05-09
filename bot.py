@@ -353,7 +353,7 @@ class Kontroler(BaseClient):
                                     .where((Suffrage.election == vote) &
                                            (Suffrage.yea == False)).count()
                     try:
-                        yv = Suffrage.get(Suffrage.election == vote) & (Suffrage.emitted_by == user))
+                        yv = Suffrage.get((Suffrage.election == vote) & (Suffrage.emitted_by == user))
                         if yv.yea:
                             you = '\00300,03YEA\003'
                         else:
