@@ -487,7 +487,7 @@ class Kontroler(BaseClient):
                 self.notice(by, " - \002\00307Needs {0} more votes for quorum\002".format(vtype.quorum-votecount))
             else:
                 if perc < percneeded:
-                    self.notice(by, " - \002\00307Motion is not going to pass ({0}% of approval, needs {1}%)\002".format(perc, percneeded))
+                    self.notice(by, " - \002\00304Motion is not passing ({0}% of approval, needs {1}%)\002".format(perc, percneeded))
                 else:
                     self.notice(by, " - \002\00303Motion is passing ({0}% of approval, needs {1}%)\002".format(perc, percneeded))
                         
