@@ -50,6 +50,7 @@ class Staff(BaseVote):
     required_lines = 1500
     duration = 2419200  # 28 days
     openfor = 86400 # 1 day
+    quorum = 5
 
     def on_pass(self, target):
         self.irc.message('ChanServ', 'FLAGS {0} {1} +o'
