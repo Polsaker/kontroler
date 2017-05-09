@@ -229,12 +229,13 @@ class Kontroler(BaseClient):
                         opened_by=opener,
                         vote_target=vote.get_target(args))
         elec.save()
-        # 7 - Emit self vote
-        svote = Suffrage(election=elec,
-                         yea=True,
-                         emitted_by=opener)
-        svote.save()
-        # 8 - Schedule
+        if vote.is_target_user and opener.name != vote.get_target(args):
+            # 7 - Emit self vote
+            svote = Suffrage(election=elec,
+                             yea=True,
+                             emitted_by=opener)
+            svote.save()
+            # 8 - Schedule
         self.eventloop.schedule_in(timedelta(seconds=vote.openfor),
                                    self._closevote, elec.id)
         # 9 - announce
@@ -352,7 +353,7 @@ class Kontroler(BaseClient):
                                     .where((Suffrage.election == vote) &
                                            (Suffrage.yea == False)).count()
                     try:
-                        yv = Suffrage.get(Suffrage.emitted_by == user)
+                        yv = Suffrage.get(Suffrage.election == vote) & (Suffrage.emitted_by == user))
                         if yv.yea:
                             you = '\00300,03YEA\003'
                         else:
@@ -438,15 +439,18 @@ class Kontroler(BaseClient):
                 return self.vote(elec, user, by, positive)
 
     def vote(self, elec, user, by, positive=True):
+        vtype = VOTE_NAMES[elec.vote_type]()
+        if vtype.is_target_user and user.name == vtype.vote_target:
+            return self.notice(by, 'Failed: You can\'t vote for yourself')
         try:
             svote = Suffrage.get(Suffrage.emitted_by == user,
                                  Suffrage.election == elec)
             if svote.yea == positive:
                 self.notice(by, 'Failed: You have already voted on'
-                            ' \002#{0}\002'.format(elec))
+                            ' \002#{0}\002'.format(elec.id))
                 return
             self.notice(by, 'You have changed your vote on '
-                        '\002#{0}\002'.format(elec))
+                        '\002#{0}\002'.format(elec.id))
 
         except Suffrage.DoesNotExist:
             svote = Suffrage(election=elec,
