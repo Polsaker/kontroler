@@ -323,6 +323,7 @@ class Kontroler(BaseClient):
             if args[0] in list(VOTE_NAMES):  # creating a vote!
                 self.start_vote(by, args)
             elif args[0] == "list":
+                print('list ', by)
                 if by not in self.channels[config.CHANNEL]['modes'] \
                                  .get('v', []):
                     return self.notice(by, 'Failed: You are not enfranchised.')
