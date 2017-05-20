@@ -11,7 +11,8 @@ from models import db, User, Election, Suffrage, Effective
 VOTE_NAMES = {"civis": votes.Civis,
               "censure": votes.Censure,
               "staff": votes.Staff,
-              "opine": votes.Opine}
+              "opine": votes.Opine,
+              "ban": votes.Ban}
 
 
 votelistParser = argparse.ArgumentParser()
@@ -43,6 +44,7 @@ def display_time(seconds, granularity=2):
 
 
 BaseClient = pydle.featurize(pydle.features.RFC1459Support,
+                             pydle.features.AccountSupport,
                              pydle.features.IRCv3Support,
                              pydle.features.WHOXSupport)
 
@@ -258,7 +260,7 @@ class Kontroler(BaseClient):
         vclass = VOTE_NAMES[vote.vote_type](self)
         vclass.on_expire(vote.vote_target)
         vote.delete_instance()
-        
+
     def _resolve_status(self, status):
         if status == 0:
             stat = '\00301,07ACTIVE\003'
@@ -272,9 +274,9 @@ class Kontroler(BaseClient):
             stat = '\00300,04VETOED\003'
         else:
             stat = '\00300,02LIZARD\003'
-        
+
         return stat
-        
+
     def _resolve_time(self, delta, word):
         if delta.total_seconds() > 604800:
             ostr = '{0} \002weeks {1}\002'.format(
@@ -291,7 +293,7 @@ class Kontroler(BaseClient):
         else:
             ostr = '{0} \002seconds {1}\002'.format(
                 int(delta.total_seconds()), word)
-        
+
         return ostr
 
     def on_message(self, target, by, message):
@@ -409,7 +411,7 @@ class Kontroler(BaseClient):
             ostr = self._resolve_time(tdel, 'ago')
         self.notice(by, "Information on vote #{0}: \002{1}\002 ({2})".format(
                         elec.id, self._resolve_status(elec.status), ostr))
-        
+
         votes = Suffrage.select().where(Suffrage.election == elec)
         yeacount = 0
         yeas = ""
@@ -443,15 +445,15 @@ class Kontroler(BaseClient):
                     self.notice(by, " - \002\00304Motion is not passing ({0}% of approval, needs {1}%)\002".format(perc, percneeded))
                 else:
                     self.notice(by, " - \002\00303Motion is passing ({0}% of approval, needs {1}%)\002".format(perc, percneeded))
-                        
+
         if yeacount == 0:
             yeas = " - "
         if naycount == 0:
             nays = " - "
-            
+
         self.notice(by, " - \002\00303YEA\003\002 - \002{0}\002: {1}".format(yeacount, yeas))
         self.notice(by, " - \002\00304NAY\003\002 - \002{0}\002: {1}".format(naycount, nays))
-        
+
 
     def vote(self, elec, user, by, positive=True):
         vtype = VOTE_NAMES[elec.vote_type](self)
