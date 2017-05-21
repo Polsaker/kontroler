@@ -330,13 +330,13 @@ class Kontroler(BaseClient):
                 vpar = votelistParser.parse_args(args[1:])
                 if not vpar.type:
                     votes = Election.select().where(Election.status == 0) \
-                                    .limit(5)
+                                    .order_by(Election.id.desc()).limit(5)
                 else:
                     if vpar.type not in list(VOTE_NAMES):
                         return self.notice(by, 'Failed: Unknown vote type')
                     votes = Election.select() \
                                     .where(Election.vote_type == vpar.type) \
-                                    .limit(10)
+                                    .order_by(Election.id.desc()).limit(10)
                 if not votes:
                     return self.notice(by, 'No matching results.')
                 user = User.get(User.name == account)
