@@ -92,7 +92,7 @@ class Kontroler(BaseClient):
                     closes_in = elec.close - datetime.utcnow()
                     self.eventloop.schedule_in(closes_in, self._expire, elec.id)
 
-            self.eventloop.schedule_periodically(600, self.set_mode, (config.CHANNEL, 'b',))
+            self.eventloop.schedule_periodically(600, self.set_mode, config.CHANNEL, 'b')
         else:
             self.whois(user)
 
