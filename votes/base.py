@@ -82,6 +82,7 @@ class BaseVote(object):
 class Opine(BaseVote):
     openfor = 900  # 15 minutes
     name = "opine"
+    duration = 0
 
     is_target_user = False
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import time
 import pydle
 import argparse
 import re
@@ -11,6 +12,9 @@ from models import db, User, Election, Suffrage, Effective
 VOTE_NAMES = {"civis": votes.Civis,
               "censure": votes.Censure,
               "staff": votes.Staff,
+              "destaff": votes.Destaff,
+              "kick": votes.Kick,
+              "topic": votes.Topic,
               "opine": votes.Opine,
               "ban": votes.Ban}
 
@@ -87,8 +91,19 @@ class Kontroler(BaseClient):
                 else:
                     closes_in = elec.close - datetime.utcnow()
                     self.eventloop.schedule_in(closes_in, self._expire, elec.id)
+
+            self.eventloop.schedule_periodically(600, self._check_ban, ())
+            self.set_mode(config.CHANNEL, 'b')
         else:
             self.whois(user)
+
+    def _check_ban(self):
+        pass
+
+    def on_raw_367(self, message):
+        ban, creator, timestamp = message.params[2:]
+        if time.time() - int(timestamp) > 86400:
+            self.set_mode(config.CHANNEL, '-b', ban)
 
     def on_notice(self, target, by, message):
         if by == "ChanServ" and target == config.CHANNEL:
@@ -104,9 +119,8 @@ class Kontroler(BaseClient):
                             self.usermap[m.group(2).lower()]['flags'] += fl
                         else:
                             self.usermap[m.group(2).lower()]['flags'] = \
-                             self.usermap[m.group(2).lower()]['flags'].replace(
-                                fl, ''
-                             )
+                                self.usermap[m.group(2).lower()]['flags'].replace(
+                                    fl, '')
         elif by == "ChanServ" and target == self.nickname:  # FLAGS
             if message == "You are not authorized to perform this operation.":
                 return self.message(config.CHANNEL, "Error: Can't see ACL")

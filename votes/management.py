@@ -15,3 +15,29 @@ class Ban(BaseVote):
     def on_expire(self, target):
         self.irc.message('ChanServ', 'FLAGS {0} {1} -b'
                          .format(config.CHANNEL, target))
+
+
+class Kick(BaseVote):
+    openfor = 600  # 15 minutes
+    name = "kick"
+    duration = 0
+
+    def on_pass(self, target):
+        self.irc.kick(config.CHANNEL, target, "The people have decided.")
+
+    def on_expire(self, target):
+        pass
+
+
+class Topic(BaseVote):
+    openfor = 900  # 15 minutes
+    name = "topic"
+    duration = 0
+
+    is_target_user = False
+
+    def on_pass(self, issue):
+        self.irc.set_topic(config.CHANNEL, issue)
+
+    def on_expire(self, target):
+        pass
