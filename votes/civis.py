@@ -49,7 +49,7 @@ class Censure(BaseVote):
 
 class Staff(BaseVote):
     required_time = 2419200  # 28 days
-    required_lines = 1500
+    required_lines = 2500
     duration = 2419200  # 28 days
     openfor = 86400  # 1 day
     quorum = 5

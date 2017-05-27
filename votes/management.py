@@ -18,7 +18,7 @@ class Ban(BaseVote):
 
 
 class Kick(BaseVote):
-    openfor = 600  # 15 minutes
+    openfor = 600  # 10 minutes
     name = "kick"
     duration = 0
 
@@ -37,7 +37,7 @@ class Topic(BaseVote):
     is_target_user = False
 
     def on_pass(self, issue):
-        self.irc.set_topic(config.CHANNEL, issue)
+        self.irc.message('ChanServ', 'TOPIC {0} {1}'.format(config.CHANNEL, issue))
 
     def on_expire(self, target):
         pass
