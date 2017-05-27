@@ -136,7 +136,7 @@ class Kontroler(BaseClient):
                     try:
                         ef = Effective.select().where(Effective.vote_target == m.group(1).lower()).get()
                     except Effective.DoesNotExist:
-                        self.irc.message('ChanServ', 'FLAGS {0} {1} -Vo'.format(config.CHANNEL, m.group(1)))
+                        self.message('ChanServ', 'FLAGS {0} {1} -Vo'.format(config.CHANNEL, m.group(1)))
 
     def msg(self, message):
         return self.notice(config.CHANNEL, message)
