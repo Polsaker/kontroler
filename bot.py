@@ -135,9 +135,9 @@ class Kontroler(BaseClient):
                             ef = Effective.select().where(Effective.vote_target == k).get()
                         except Effective.DoesNotExist:
                             flags = 'Vo'
-                            if civis_count <= 3:
+                            if self.civis_count <= 3:
                                 flags = flags.replace('V', '')
-                            if staff_count <= 2:
+                            if self.staff_count <= 2:
                                 flags = flags.replace('o', '')
                             self.message('ChanServ', 'FLAGS {0} {1} {2}'.format(config.CHANNEL, k, flags))
                 return
