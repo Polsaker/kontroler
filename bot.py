@@ -100,7 +100,7 @@ class Kontroler(BaseClient):
     def _check_flags(self):
         self.civis_count = 0
         self.staff_count = 0
-        self.message('ChanServ', 'FLAGS {}'.format(channel))
+        self.message('ChanServ', 'FLAGS {}'.format(config.CHANNEL))
 
     def on_raw_367(self, message):
         ban, creator, timestamp = message.params[2:]
