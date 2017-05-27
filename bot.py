@@ -74,7 +74,7 @@ class Kontroler(BaseClient):
 
     def on_join(self, channel, user):
         if user == self.nickname:
-            self.message('ChanServ', 'FLAGS {}'.format(channel))
+            self._check_flags()
 
             for elec in Election.select().where(Election.status == 0):
                 if elec.close < datetime.utcnow():
@@ -93,12 +93,14 @@ class Kontroler(BaseClient):
                     self.eventloop.schedule_in(closes_in, self._expire, elec.id)
 
             self.eventloop.schedule_periodically(600, self.set_mode, config.CHANNEL, 'b')
-            self.eventloop.schedule_periodically(3600, self.message, 'ChanServ', 'FLAGS {}'.format(channel))
+            self.eventloop.schedule_periodically(3600, self._check_flags)
         else:
             self.whois(user)
 
-    def _check_ban(self):
-        pass
+    def _check_flags(self):
+        self.civis_count = 0
+        self.staff_count = 0
+        self.message('ChanServ', 'FLAGS {}'.format(channel))
 
     def on_raw_367(self, message):
         ban, creator, timestamp = message.params[2:]
@@ -124,6 +126,21 @@ class Kontroler(BaseClient):
         elif by == "ChanServ" and target == self.nickname:  # FLAGS
             if message == "You are not authorized to perform this operation.":
                 return self.message(config.CHANNEL, "Error: Can't see ACL")
+
+            if message.endswith('FLAGS listing.'):
+                for k in self.usermap:
+                    u = self.usermap[k]['flags']
+                    if (('V' in u) or ('o' in u)) and k != config.SASL_USER.lower():
+                        try:
+                            ef = Effective.select().where(Effective.vote_target == k).get()
+                        except Effective.DoesNotExist:
+                            flags = 'Vo'
+                            if civis_count <= 3:
+                                flags = flags.replace('V', '')
+                            if staff_count <= 2:
+                                flags = flags.replace('o', '')
+                            self.message('ChanServ', 'FLAGS {0} {1} {2}'.format(config.CHANNEL, k, flags))
+                return
             m = CS_FLAGS_RE.search(message)
             if m:
                 if self.usermap.get(m.group(1).lower()):
@@ -131,12 +148,10 @@ class Kontroler(BaseClient):
                 else:
                     self.usermap[m.group(1).lower()] = {"flags": m.group(2)}
 
-                # rekt.
-                if (('V' in m.group(2)) or ('o' in m.group(2))) and m.group(1).lower() != config.SASL_USER:
-                    try:
-                        ef = Effective.select().where(Effective.vote_target == m.group(1).lower()).get()
-                    except Effective.DoesNotExist:
-                        self.message('ChanServ', 'FLAGS {0} {1} -Vo'.format(config.CHANNEL, m.group(1)))
+                if 'V' in m.group(2):
+                    self.civis_count += 1
+                if 'o' in m.group(2):
+                    self.staff_count += 1
 
     def msg(self, message):
         return self.notice(config.CHANNEL, message)
