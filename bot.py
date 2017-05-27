@@ -93,6 +93,7 @@ class Kontroler(BaseClient):
                     self.eventloop.schedule_in(closes_in, self._expire, elec.id)
 
             self.eventloop.schedule_periodically(600, self.set_mode, config.CHANNEL, 'b')
+            self.eventloop.schedule_periodically(3600, self.message, 'ChanServ', 'FLAGS {}'.format(channel))
         else:
             self.whois(user)
 
@@ -129,6 +130,13 @@ class Kontroler(BaseClient):
                     self.usermap[m.group(1).lower()]['flags'] = m.group(2)
                 else:
                     self.usermap[m.group(1).lower()] = {"flags": m.group(2)}
+
+                # rekt.
+                if (('V' in m.group(2)) or ('o' in m.group(2))) and m.group(1).lower() != config.SASL_USER:
+                    try:
+                        ef = Effective.select().where(Effective.vote_target == m.group(1).lower()).get()
+                    except Effective.DoesNotExist:
+                        self.irc.message('ChanServ', 'FLAGS {0} {1} -Vo'.format(config.CHANNEL, m.group(1)))
 
     def msg(self, message):
         return self.notice(config.CHANNEL, message)
