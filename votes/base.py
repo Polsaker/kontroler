@@ -88,9 +88,8 @@ class Opine(BaseVote):
 
     def on_pass(self, issue):
         self.irc.msg("The people of {0} decided \002{1}\002".format(
-                    config.CHANNEL,
-                    issue))
-
+                     config.CHANNEL,
+                     issue))
 
     def on_expire(self, target):
         pass

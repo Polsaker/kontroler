@@ -1,0 +1,15 @@
+{
+    "\u000301,07ACTIVE\u0003": "\u000301,07ACTIVO\u0003",
+    "\u000300,03PASSED\u0003": "\u000300,03APROBADO\u0003",
+    "\u000300,04FAILED\u0003": "\u000300,04RECHAZADO\u0003",
+    "\u000300,04VETOED\u0003": "\u000300,04VETADO\u0003",
+    
+    "{0} \u0002weeks {1}\u0002": "\u0002{1} {0} semanas\u0002",
+    "{0} \u0002days {1}\u0002": "\u0002{1} {0} días\u0002",
+    "{0} \u0002hours {1}\u0002": "\u0002{1} {0} horas\u0002",
+    "{0} \u0002minutes {1}\u0002": "\u0002{1} {0} minutos\u0002",
+    "{0} \u0002seconds {1}\u0002": "\u0002{1} {0} segundos\u0002",
+    
+    "ago": "hace",
+    "left": "faltan"
+}

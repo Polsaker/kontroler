@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import votes
 import config
 from models import db, User, Election, Suffrage, Effective
+from i18n import _
 
 VOTE_NAMES = {"civis": votes.Civis,
               "censure": votes.Censure,
@@ -125,7 +126,7 @@ class Kontroler(BaseClient):
                                     fl, '')
         elif by == "ChanServ" and target == self.nickname:  # FLAGS
             if message == "You are not authorized to perform this operation.":
-                return self.message(config.CHANNEL, "Error: Can't see ACL")
+                return self.message(config.CHANNEL, _("Error: Can't see ACL"))
 
             if message.endswith('FLAGS listing.'):
                 for k in self.usermap:
@@ -189,19 +190,18 @@ class Kontroler(BaseClient):
         account = self.users[by]['account'].lower()
         # 1 - Check if user has voice
         if by not in self.channels[config.CHANNEL]['modes'].get('v', []):
-            return self.notice(by, 'Failed: You are not enfranchised.')
+            return self.notice(by, _('Failed: You are not enfranchised.'))
         # 2 - get vote class
         vote = VOTE_NAMES[args[0]](self)
         if not vote.get_target(args):
-            return self.notice(by, 'Failed: Target user not found or not identified.')
+            return self.notice(by, _('Failed: Target user not found or not identified.'))
         # 3 - check if vote already exists
         opener = User.get(User.name == account)
         try:
             vote = Election.select() \
-                        .where(Election.vote_type == args[0],
-                               Election.status == 0,
-                               Election.vote_target == vote.get_target(args)) \
-                        .get()
+                           .where(Election.vote_type == args[0],
+                                  Election.status == 0,
+                                  Election.vote_target == vote.get_target(args)).get()
             # !!! vote already exists
             return self.vote(vote, opener, by)
         except Election.DoesNotExist:
@@ -232,12 +232,11 @@ class Kontroler(BaseClient):
                                    self._closevote, elec.id)
         # 9 - announce
         dt = display_time(vote.openfor)
-        self.msg("Vote \002#{0}\002: \002{1}\002: \037{2}\037. You have "
-                 "\002{3}\002 to vote; \002{4}\002 votes are required for a "
-                 "quorum! Type or PM \002\00303!vote y {0}\003\002 or "
-                 "\002\00304!vote n {0}\003\002".format(
-                     elec.id, args[0], vote.get_target(args), dt, vote.quorum
-                 ))
+        self.msg(_("Vote \002#{0}\002: \002{1}\002: \037{2}\037. You have "
+                   "\002{3}\002 to vote; \002{4}\002 votes are required for a "
+                   "quorum! Type or PM \002\00303!vote y {0}\003\002 or "
+                   "\002\00304!vote n {0}\003\002").format(
+                       elec.id, args[0], vote.get_target(args), dt, vote.quorum))
 
     def _closevote(self, voteid):
         """ Called when a vote is to be closed """
@@ -245,10 +244,8 @@ class Kontroler(BaseClient):
         vclass = VOTE_NAMES[vote.vote_type](self)
         suffrages = Suffrage.select().where(Suffrage.election == vote)
         if suffrages.count() < vclass.quorum:
-            self.msg("\002#{0}\002: Failed to reach quorum: \002{1}\002 of "
-                     "\002{2}\002 required votes.".format(voteid,
-                                                          suffrages.count(),
-                                                          vclass.quorum))
+            self.msg(_("\002#{0}\002: Failed to reach quorum: \002{1}\002 of "
+                       "\002{2}\002 required votes.").format(voteid, suffrages.count(), vclass.quorum))
             vote.status = 2  # Closed - quorum
             vote.save()
             return
@@ -259,27 +256,19 @@ class Kontroler(BaseClient):
                 yeas += 1
             else:
                 nays += 1
-        perc = int((yeas / suffrages.count())*100)
+        perc = int((yeas / suffrages.count()) * 100)
         if (perc < 75 and vclass.supermajority) or (perc < 51):
-            self.msg("\002#{0}\002: \002{1}\002: \037{2}\037. "
-                     "\002\00300,04The nays have it.\003\002 "
-                     "Yeas: \00303{3}\003. Nays: \00304{4}\003. "
-                     "\00304{5}\003% of approval (required at least "
-                     "\002{6}%)".format(voteid, vote.vote_type,
-                                        vote.vote_target,
-                                        yeas, nays, perc,
-                                        75 if vclass.supermajority else 51))
+            self.msg(_("\002#{0}\002: \002{1}\002: \037{2}\037.  \002\00300,04The nays have it.\003\002 "
+                       "Yeas: \00303{3}\003. Nays: \00304{4}\003. \00304{5}\003% of approval (required at least \002{6}%)")
+                     .format(voteid, vote.vote_type, vote.vote_target, yeas, nays, perc,
+                             75 if vclass.supermajority else 51))
             vote.status = 3  # closed - not approved
             vote.save()
             return
-        self.msg("\002#{0}\002: \002{1}\002: \037{2}\037. "
-                 "\002\00300,03The yeas have it.\003\002 "
-                 "Yeas: \00303{3}\003. Nays: \00304{4}\003. "
-                 "\00303{5}\003% of approval (required at least "
-                 "\002{6}%)".format(voteid, vote.vote_type,
-                                    vote.vote_target,
-                                    yeas, nays, perc,
-                                    75 if vclass.supermajority else 51))
+        self.msg(_("\002#{0}\002: \002{1}\002: \037{2}\037. \002\00300,03The yeas have it.\003\002 Yeas: \00303{3}\003. Nays: \00304{4}\003. "
+                   "\00303{5}\003% of approval (required at least \002{6}%)")
+                 .format(voteid, vote.vote_type, vote.vote_target, yeas, nays, perc,
+                         75 if vclass.supermajority else 51))
         vote.status = 1  # closed - passed
         vote.save()
         vclass.on_pass(vote.vote_target)
@@ -299,35 +288,35 @@ class Kontroler(BaseClient):
 
     def _resolve_status(self, status):
         if status == 0:
-            stat = '\00301,07ACTIVE\003'
+            stat = _('\00301,07ACTIVE\003')
         elif status == 1:
-            stat = '\00300,03PASSED\003'
+            stat = _('\00300,03PASSED\003')
         elif status == 2:
-            stat = '\00300,04QUORUM\003'
+            stat = _('\00300,04QUORUM\003')
         elif status == 3:
-            stat = '\00300,04FAILED\003'
+            stat = _('\00300,04FAILED\003')
         elif status == 4:
-            stat = '\00300,04VETOED\003'
+            stat = _('\00300,04VETOED\003')
         else:
-            stat = '\00300,02LIZARD\003'
+            stat = _('\00300,02LIZARD\003')
 
         return stat
 
     def _resolve_time(self, delta, word):
         if delta.total_seconds() > 604800:
-            ostr = '{0} \002weeks {1}\002'.format(
-                int(delta.total_seconds()/604800), word)
+            ostr = _('{0} \002weeks {1}\002').format(
+                int(delta.total_seconds() / 604800), word)
         elif delta.total_seconds() > 86400:
-            ostr = '{0} \002days {1}\002'.format(
-                int(delta.total_seconds()/86400), word)
+            ostr = _('{0} \002days {1}\002').format(
+                int(delta.total_seconds() / 86400), word)
         elif delta.total_seconds() > 3600:
-            ostr = '{0} \002hours {1}\002'.format(
-                round(delta.total_seconds()/3600, 2), word)
+            ostr = _('{0} \002hours {1}\002').format(
+                int(round(delta.total_seconds() / 3600, 0)), word)
         elif delta.total_seconds() > 60:
-            ostr = '{0} \002minutes {1}\002'.format(
-                round(delta.total_seconds()/60, 2), word)
+            ostr = _('{0} \002minutes {1}\002').format(
+                int(round(delta.total_seconds() / 60, 0)), word)
         else:
-            ostr = '{0} \002seconds {1}\002'.format(
+            ostr = _('{0} \002seconds {1}\002').format(
                 int(delta.total_seconds()), word)
 
         return ostr
@@ -394,14 +383,14 @@ class Kontroler(BaseClient):
                     stat = self._resolve_status(vote.status)
                     if vote.status == 0:
                         tdel = vote.close - datetime.utcnow()
-                        ostr = self._resolve_time(tdel, 'left')
+                        ostr = self._resolve_time(tdel, _('left'))
                     else:
                         tdel = datetime.utcnow() - vote.close
-                        ostr = self._resolve_time(tdel, 'ago')
-                    self.msg('\002#{0} YEA: \00303{1}\003 NAY: \00305{2}\003 '
-                             'YOU: {3} {4} {5}\002 \037{6}\037 - {7}'.format(
-                                 vote.id, posit, negat, you, stat,
-                                 vote.vote_type, vote.vote_target, ostr))
+                        ostr = self._resolve_time(tdel, _('ago'))
+                    self.msg(_('\002#{0} YEA: \00303{1}\003 NAY: \00305{2}\003 '
+                               'YOU: {3} {4} {5}\002 \037{6}\037 - {7}').format(
+                                   vote.id, posit, negat, you, stat,
+                                   vote.vote_type, vote.vote_target, ostr))
 
             elif args[0].isdigit() or args[0] in ['y', 'yes', 'n', 'no']:
                 if by not in self.channels[config.CHANNEL]['modes'] \
