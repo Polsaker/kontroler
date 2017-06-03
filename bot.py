@@ -347,7 +347,7 @@ class Kontroler(BaseClient):
             args[0] = args[0].strip('#')
             if args[0] in list(VOTE_NAMES):  # creating a vote!
                 self.start_vote(by, args)
-            elif args[0] == "list":
+            elif args[0] == "list" and target == config.CHANNEL:
                 print('list ', by)
                 if by not in self.channels[config.CHANNEL]['modes'] \
                                  .get('v', []):
