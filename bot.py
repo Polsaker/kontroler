@@ -497,12 +497,12 @@ class Kontroler(BaseClient):
             self.notice(by, 'You have changed your vote on '
                         '\002#{0}\002'.format(elec.id))
             if doAnn:
-                self.msg('{0} changed their vote in #\002{2}\002 (now is \002{1}\002)'.format(user, '\00303YEA\003' if positive else '\00304NAY\003', elec))
+                self.msg('{0} changed their vote in #\002{2}\002 (now is \002{1}\002)'.format(user.name, '\00303YEA\003' if positive else '\00304NAY\003', elec.id))
         except Suffrage.DoesNotExist:
             svote = Suffrage(election=elec,
                              emitted_by=user)
             if doAnn:
-                self.msg('{0} voted \002{1}\002 in #\002{2}\002'.format(user, '\00303YEA\003' if positive else '\00304NAY\003', elec))
+                self.msg('{0} voted \002{1}\002 in #\002{2}\002'.format(user.name, '\00303YEA\003' if positive else '\00304NAY\003', elec.id))
             self.notice(by, 'Thanks for casting your vote in '
                         '\002#{0}\002'.format(elec.id))
         svote.yea = positive
