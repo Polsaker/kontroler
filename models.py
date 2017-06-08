@@ -3,6 +3,8 @@ from peewee import ForeignKeyField, BooleanField, IntegerField
 
 
 db = SqliteDatabase('users.db')
+
+
 class User(Model):
     name = CharField()
     first_seen = DateTimeField()

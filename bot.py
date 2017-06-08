@@ -352,7 +352,7 @@ class Kontroler(BaseClient):
                 if by not in self.channels[config.CHANNEL]['modes'] \
                                  .get('v', []):
                     return self.notice(by, 'Failed: You are not enfranchised.')
-                vpar = votelistParser.parse_args(args[1:])
+                vpar, unk = votelistParser.parse_known_args(args[1:])
                 if not vpar.type:
                     votes = Election.select().where(Election.status == 0) \
                                     .order_by(Election.id.desc()).limit(5)
