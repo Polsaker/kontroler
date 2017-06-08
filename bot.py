@@ -423,7 +423,7 @@ class Kontroler(BaseClient):
                 if elec.status != 0:
                     return self.notice(by, 'Failed: This vote already '
                                        'ended')
-                return self.vote(elec, user, by, positive, (target == config.CHANNEL))
+                return self.vote(elec, user, by, positive, (target != config.CHANNEL))
 
     def vote_info(self, by, voteid):
         try:
