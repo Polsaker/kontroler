@@ -423,7 +423,7 @@ class Kontroler(BaseClient):
                 if elec.status != 0:
                     return self.notice(by, 'Failed: This vote already '
                                        'ended')
-                return self.vote(elec, user, by, positive)
+                return self.vote(elec, user, by, positive, (target == config.CHANNEL))
 
     def vote_info(self, by, voteid):
         try:
@@ -483,8 +483,7 @@ class Kontroler(BaseClient):
         self.notice(by, " - \002\00303YEA\003\002 - \002{0}\002: {1}".format(yeacount, yeas))
         self.notice(by, " - \002\00304NAY\003\002 - \002{0}\002: {1}".format(naycount, nays))
 
-
-    def vote(self, elec, user, by, positive=True):
+    def vote(self, elec, user, by, positive=True, doAnn=False):
         vtype = VOTE_NAMES[elec.vote_type](self)
         if vtype.is_target_user and user.name == elec.vote_target:
             return self.notice(by, 'Failed: You can\'t vote for yourself')
@@ -497,10 +496,13 @@ class Kontroler(BaseClient):
                 return
             self.notice(by, 'You have changed your vote on '
                         '\002#{0}\002'.format(elec.id))
-
+            if doAnn:
+                self.msg('{0} changed their vote in #\002{2}\002 (now is \002{1}\002)'.format(user, '\00303YEA\003' if positive else '\00304NAY\003', elec))
         except Suffrage.DoesNotExist:
             svote = Suffrage(election=elec,
                              emitted_by=user)
+            if doAnn:
+                self.msg('{0} voted \002{1}\002 in #\002{2}\002'.format(user, '\00303YEA\003' if positive else '\00304NAY\003', elec))
             self.notice(by, 'Thanks for casting your vote in '
                         '\002#{0}\002'.format(elec.id))
         svote.yea = positive
