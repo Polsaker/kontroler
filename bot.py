@@ -276,7 +276,7 @@ class Kontroler(BaseClient):
         act = Effective(vote_type=vote.vote_type,
                         close=datetime.utcnow() +
                         timedelta(seconds=vclass.duration),
-                        vote_target=vote.vote_target
+                        vote_target=vote.vote_target,
                         election=vote)
         act.save()
         self.eventloop.schedule_in(vclass.duration, self._expire, act.id)
