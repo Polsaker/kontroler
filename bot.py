@@ -131,15 +131,15 @@ class Kontroler(BaseClient):
             if message.endswith('FLAGS listing.'):
                 for k in self.usermap:
                     u = self.usermap[k]['flags']
-                    if (('V' in u) or ('o' in u)) and k != config.SASL_USER.lower():
+                    if (('V' in u) or ('O' in u)) and k != config.SASL_USER.lower():
                         try:
                             ef = Effective.select().where(Effective.vote_target == k).get()
                         except Effective.DoesNotExist:
-                            flags = 'Vo'
+                            flags = 'VO'
                             if self.civis_count <= 3:
                                 flags = flags.replace('V', '')
                             if self.staff_count <= 2:
-                                flags = flags.replace('o', '')
+                                flags = flags.replace('O', '')
                             self.message('ChanServ', 'FLAGS {0} {1} {2}'.format(config.CHANNEL, k, flags))
                 return
             m = CS_FLAGS_RE.search(message)
@@ -151,7 +151,7 @@ class Kontroler(BaseClient):
 
                 if 'V' in m.group(2):
                     self.civis_count += 1
-                if 'o' in m.group(2):
+                if 'O' in m.group(2):
                     self.staff_count += 1
 
     def msg(self, message):

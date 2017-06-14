@@ -1,5 +1,6 @@
 import config
 from .base import BaseVote
+from models import Election
 
 
 class Civis(BaseVote):
@@ -13,6 +14,12 @@ class Civis(BaseVote):
                          .format(config.CHANNEL, target))
 
     def on_expire(self, target):
+        try:
+            x = Effective.select().where((Effective.vote_type == self.name) &
+                                         (Effective.vote_target == target)).get()
+            return self.irc.msg('\002{0}\002\'s civis expired. Not removing, as they are active staff.')
+        except Effective.DoesNotExist:
+            pass
         self.irc.message('ChanServ', 'FLAGS {0} {1} -V'
                          .format(config.CHANNEL, target))
 
@@ -58,12 +65,17 @@ class Staff(BaseVote):
     cooldown = 604800  # 7 days
 
     def on_pass(self, target):
-        self.irc.message('ChanServ', 'FLAGS {0} {1} +o'
+        self.irc.message('ChanServ', 'FLAGS {0} {1} +O'
                          .format(config.CHANNEL, target))
 
     def on_expire(self, target):
-        self.irc.message('ChanServ', 'FLAGS {0} {1} -o'
-                         .format(config.CHANNEL, target))
+        f = self.irc.usermap[self.get_target(args)]['flags']
+        if 'V' in f:
+            flags = '-VO'
+        else:
+            flags = '-O'
+        self.irc.message('ChanServ', 'FLAGS {0} {1} {2}'
+                         .format(config.CHANNEL, target, flags))
 
     def vote_check(self, args, by):
         f = self.irc.usermap[self.get_target(args)]['flags']
@@ -82,7 +94,7 @@ class Destaff(BaseVote):
     cooldown = 604800  # 7 days
 
     def on_pass(self, target):
-        self.irc.message('ChanServ', 'FLAGS {0} {1} -o'
+        self.irc.message('ChanServ', 'FLAGS {0} {1} -O'
                          .format(config.CHANNEL, target))
 
     def on_expire(self, target):
@@ -90,7 +102,7 @@ class Destaff(BaseVote):
 
     def vote_check(self, args, by):
         f = self.irc.usermap[self.get_target(args)]['flags']
-        if 'o' not in f:
+        if 'O' not in f:
             return self.irc.notice(by, "Can't start vote: User at issue is "
                                    "not staff.")
         return super().vote_check(args, by)
