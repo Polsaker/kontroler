@@ -190,7 +190,8 @@ class Kontroler(BaseClient):
         account = self.users[by]['account'].lower()
         # 1 - Check if user has voice
         if by not in self.channels[config.CHANNEL]['modes'].get('v', []):
-            return self.notice(by, _('Failed: You are not enfranchised.'))
+            if by not in self.channels[config.CHANNEL]['modes'].get('o', []):
+                return self.notice(by, _('Failed: You are not enfranchised.'))
         # 2 - get vote class
         vote = VOTE_NAMES[args[0]](self)
         if not vote.get_target(args):
