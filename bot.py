@@ -351,9 +351,9 @@ class Kontroler(BaseClient):
                 self.start_vote(by, args)
             elif args[0] == "list" and target == config.CHANNEL:
                 print('list ', by)
-                if by not in self.channels[config.CHANNEL]['modes'] \
-                                 .get('v', []):
-                    return self.notice(by, 'Failed: You are not enfranchised.')
+                if by not in self.channels[config.CHANNEL]['modes'].get('v', []):
+                    if by not in self.channels[config.CHANNEL]['modes'].get('o', []):
+                        return self.notice(by, 'Failed: You are not enfranchised.')
                 vpar, unk = votelistParser.parse_known_args(args[1:])
                 if not vpar.type:
                     votes = Election.select().where(Election.status == 0) \
@@ -395,9 +395,9 @@ class Kontroler(BaseClient):
                                    vote.vote_type, vote.vote_target, ostr))
 
             elif args[0].isdigit() or args[0] in ['y', 'yes', 'n', 'no']:
-                if by not in self.channels[config.CHANNEL]['modes'] \
-                                 .get('v', []):
-                    return self.notice(by, 'Failed: You are not enfranchised.')
+                if by not in self.channels[config.CHANNEL]['modes'].get('v', []):
+                    if by not in self.channels[config.CHANNEL]['modes'].get('o', []):
+                        return self.notice(by, 'Failed: You are not enfranchised.')
                 user = User.get(User.name == account)
                 if args[0].isdigit():
                     if len(args) == 1:
