@@ -1,6 +1,6 @@
 import config
 from .base import BaseVote
-from models import Election
+from models import Election, Effective
 
 
 class Civis(BaseVote):
@@ -17,7 +17,7 @@ class Civis(BaseVote):
         try:
             x = Effective.select().where((Effective.vote_type == self.name) &
                                          (Effective.vote_target == target)).get()
-            return self.irc.msg('\002{0}\002\'s civis expired. Not removing, as they are active staff.')
+            return self.irc.msg('\002{0}\002\'s civis expired. Not removing, as they are active staff.'.format(target))
         except Effective.DoesNotExist:
             pass
         self.irc.message('ChanServ', 'FLAGS {0} {1} -V'
@@ -69,7 +69,8 @@ class Staff(BaseVote):
                          .format(config.CHANNEL, target))
 
     def on_expire(self, target):
-        f = self.irc.usermap[self.get_target(args)]['flags']
+        f = self.irc.usermap[target]['flags']
+        print(f, ' ', target)
         if 'V' in f:
             flags = '-VO'
         else:
