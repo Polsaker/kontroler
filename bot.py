@@ -131,7 +131,7 @@ class Kontroler(BaseClient):
             if message.endswith('FLAGS listing.'):
                 for k in self.usermap:
                     u = self.usermap[k]['flags']
-                    if (('V' in u) or ('O' in u)) and k != config.SASL_USER.lower():
+                    if (('V' in u) or ('O' in u)) and k.lower() != config.SASL_USER.lower():
                         try:
                             ef = Effective.select().where(Effective.vote_target == k).get()
                         except Effective.DoesNotExist:
