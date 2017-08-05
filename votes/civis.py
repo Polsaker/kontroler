@@ -15,9 +15,15 @@ class Civis(BaseVote):
 
     def on_expire(self, target):
         try:
-            x = Effective.select().where((Effective.vote_type == self.name) &
+            x = Effective.select().where((Effective.vote_type == "staff") &
                                          (Effective.vote_target == target)).get()
             return self.irc.msg('\002{0}\002\'s civis expired. Not removing, as they are active staff.'.format(target))
+        except Effective.DoesNotExist:
+            pass
+        try:
+            x = Effective.select().where((Effective.vote_type == "civis")).count()
+            if count <= 3:
+                return self.irc.msg('\002{0}\002\'s civis expired. Not removing as there are too few enfranchised users.')
         except Effective.DoesNotExist:
             pass
         self.irc.message('ChanServ', 'FLAGS {0} {1} -V'
@@ -75,6 +81,13 @@ class Staff(BaseVote):
             flags = '-VO'
         else:
             flags = '-O'
+        try:
+            x = Effective.select().where((Effective.vote_type == "staff")).count()
+            if count <= 2:
+                return self.irc.msg('\002{0}\002\'s civis expired. Not removing as there are too few enfranchised users.')
+        except Effective.DoesNotExist:
+            pass
+
         self.irc.message('ChanServ', 'FLAGS {0} {1} {2}'
                          .format(config.CHANNEL, target, flags))
 
