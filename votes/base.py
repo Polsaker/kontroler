@@ -22,7 +22,7 @@ class BaseVote(object):
         if self.is_target_user:
             try:
                 return self.irc.users[args[1]]['account'].lower()
-            except AttributeError:
+            except (AttributeError, KeyError):
                 return False
         else:
             return " ".join(args[1:])
