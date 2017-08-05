@@ -127,20 +127,22 @@ class Kontroler(BaseClient):
         elif by == "ChanServ" and target == self.nickname:  # FLAGS
             if message == "You are not authorized to perform this operation.":
                 return self.message(config.CHANNEL, _("Error: Can't see ACL"))
-
             if message.endswith('FLAGS listing.'):
                 for k in self.usermap:
                     u = self.usermap[k]['flags']
                     if (('V' in u) or ('O' in u)) and k.lower() != config.SASL_USER.lower():
+                        print(self.civis_count, k)
                         try:
                             ef = Effective.select().where(Effective.vote_target == k).get()
                         except Effective.DoesNotExist:
                             flags = 'VO'
                             if self.civis_count <= 3:
                                 flags = flags.replace('V', '')
+                                self.civis_count -= 1
                             if self.staff_count <= 2:
                                 flags = flags.replace('O', '')
-                            self.message('ChanServ', 'FLAGS {0} {1} {2}'.format(config.CHANNEL, k, flags))
+                                self.staff_count -= 1
+                            self.message('ChanServ', 'FLAGS {0} {1} -{2}'.format(config.CHANNEL, k, flags))
                 return
             m = CS_FLAGS_RE.search(message)
             if m:
