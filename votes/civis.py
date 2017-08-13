@@ -22,7 +22,7 @@ class Civis(BaseVote):
             pass
         try:
             x = Effective.select().where((Effective.vote_type == "civis")).count()
-            if count <= 3:
+            if x <= 3:
                 return self.irc.msg('\002{0}\002\'s civis expired. Not removing as there are too few enfranchised users.')
         except Effective.DoesNotExist:
             pass
@@ -83,7 +83,7 @@ class Staff(BaseVote):
             flags = '-O'
         try:
             x = Effective.select().where((Effective.vote_type == "staff")).count()
-            if count <= 2:
+            if x <= 2:
                 return self.irc.msg('\002{0}\002\'s civis expired. Not removing as there are too few enfranchised users.')
         except Effective.DoesNotExist:
             pass
